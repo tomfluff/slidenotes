@@ -507,7 +507,9 @@ kbd {
 .sheet-frame .overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sheet-frame .missing { display: flex; align-items: center; justify-content: center; aspect-ratio: 16/9; color: var(--muted); font-size: 0.875rem; line-height: 1.4; background: var(--surface-2); }
 .sheet-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-.sheet-notes li { display: flex; gap: 0.6rem; font-size: calc(0.9375rem * var(--comment-scale, 1)); }
+.sheet-notes li { display: flex; align-items: flex-start; gap: 0.6rem; font-size: calc(0.9375rem * var(--comment-scale, 1)); line-height: 1.5; }
+/* The badge centres on the first line of text whatever the comment text size is. */
+.sheet-notes li > .badge-num { margin-top: max(0px, calc((1em * 1.5 - var(--badge)) / 2)); }
 .sheet-notes li > div { min-width: 0; }
 .sheet-notes p { white-space: pre-wrap; word-break: break-word; }
 .sheet-notes small { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
