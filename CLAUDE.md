@@ -19,7 +19,11 @@ or export code; section 7 lists the interaction maths that each fixed a real bug
 `public/coi-serviceworker.js` is registered on demand and reloads the page once; the dropped
 file is parked in IndexedDB (`meta.pendingPptx`) across the reload and resumed in `App`. Keep
 those three public files static (never bundled). The real conversion test is opt-in
-(`pnpm test:e2e:pptx`); do not add it to CI.
+(`pnpm test:e2e:pptx`); do not add it to CI. Once a visitor has registered the service
+worker, every later page load is cross-origin isolated (COEP require-corp): any new
+cross-origin resource must be served with CORP or CORS headers or it will be blocked for
+those visitors. Everything today is same-origin except cdn.zetaoffice.net and Google
+Analytics, both of which send the headers.
 
 ## Conventions
 
