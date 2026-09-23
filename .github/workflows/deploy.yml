@@ -52,6 +52,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - name: Serve the production build
+        run: |
+          nohup pnpm preview --port 4173 --strictPort > preview.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:4173/slidenotes/ > /dev/null && exit 0
+            sleep 1
+          done
+          echo "preview server did not start"; cat preview.log; exit 1
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v7
         if: always()

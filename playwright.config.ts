@@ -14,10 +14,14 @@ export default defineConfig({
     baseURL: 'http://localhost:4173/slidenotes/',
     trace: 'retain-on-failure',
   },
+  // Locally Playwright builds and serves the app itself. In CI the workflow builds and starts
+  // the preview server in its own steps and Playwright only reuses it: a pnpm shell chain
+  // spawned by Playwright was not being torn down on the GitHub runner, so the test process
+  // never exited even after every test had passed.
   webServer: {
     command: 'pnpm build && pnpm preview --port 4173 --strictPort',
     url: 'http://localhost:4173/slidenotes/',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 180_000,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
