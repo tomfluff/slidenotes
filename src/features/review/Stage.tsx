@@ -100,8 +100,27 @@ export function Stage() {
   const [moving, setMoving] = useState(false);
   const [spaceDown, setSpaceDown] = useState(false);
   const [panning, setPanning] = useState(false);
+  /**
+   * Free pan offset, used on an axis where the slide fits and there is nothing to scroll.
+   * A translated slide would itself create scrollable overflow, so that axis is clipped
+   * (overflow hidden) while the offset is in use.
+   */
+  const offset = useRef({ x: 0, y: 0 });
+  const applyOffset = () => {
+    const inner = innerRef.current;
+    if (inner) inner.style.transform = offset.current.x || offset.current.y ? `translate(${offset.current.x}px, ${offset.current.y}px)` : '';
+  };
+  const clearOffset = () => {
+    offset.current = { x: 0, y: 0 };
+    applyOffset();
+    const stage = stageRef.current;
+    if (stage) {
+      stage.style.overflowX = '';
+      stage.style.overflowY = '';
+    }
+  };
   const drag = useRef<{ x0: number; y0: number; id: number } | null>(null);
-  const pan = useRef<{ x: number; y: number; sl: number; st: number; id: number } | null>(null);
+  const pan = useRef<{ x: number; y: number; sl: number; st: number; ox: number; oy: number; freeX: boolean; freeY: boolean; id: number } | null>(null);
   const announceTimer = useRef<number | null>(null);
 
   const items = useMemo(() => {
@@ -146,6 +165,7 @@ export function Stage() {
       if (!stage || !mat) return;
       next = clamp(next, ZOOM_MIN, ZOOM_MAX);
       if (Math.abs(next - zoomRef.current) < 0.001) return;
+      clearOffset();
       const sr = stage.getBoundingClientRect();
       const before = mat.getBoundingClientRect();
       const ax = clientX ?? sr.left + sr.width / 2;
@@ -166,6 +186,7 @@ export function Stage() {
     zoomRef.current = 1;
     applyZoom(1);
     setZoomState(1);
+    clearOffset();
     const stage = stageRef.current;
     if (stage) {
       stage.scrollLeft = 0;
@@ -369,17 +390,29 @@ export function Stage() {
     // Toolbar buttons keep their clicks; region badges, bodies and handles still pan.
     const btn = (e.target as HTMLElement).closest('button');
     if (btn && !btn.closest('.pin-layer')) return;
-    pan.current = { x: e.clientX, y: e.clientY, sl: stage.scrollLeft, st: stage.scrollTop, id: e.pointerId };
+    // Decide per axis, once, whether this pan scrolls or translates.
+    const freeX = offset.current.x !== 0 || stage.scrollWidth <= stage.clientWidth + 1;
+    const freeY = offset.current.y !== 0 || stage.scrollHeight <= stage.clientHeight + 1;
+    if (freeX) stage.style.overflowX = 'hidden';
+    if (freeY) stage.style.overflowY = 'hidden';
+    pan.current = { x: e.clientX, y: e.clientY, sl: stage.scrollLeft, st: stage.scrollTop, ox: offset.current.x, oy: offset.current.y, freeX, freeY, id: e.pointerId };
     stage.setPointerCapture(e.pointerId);
     setPanning(true);
     e.preventDefault();
   };
+  // Panning scrolls where the slide overflows and translates it where it fits, so the
+  // slide can always be dragged, at 100% and below as well as when zoomed in.
   const onStagePointerMove = (e: RPointerEvent<HTMLDivElement>) => {
     const p = pan.current;
     const stage = stageRef.current;
     if (!p || p.id !== e.pointerId || !stage) return;
-    stage.scrollLeft = p.sl - (e.clientX - p.x);
-    stage.scrollTop = p.st - (e.clientY - p.y);
+    const dx = e.clientX - p.x;
+    const dy = e.clientY - p.y;
+    if (p.freeX) offset.current.x = clamp(p.ox + dx, -stage.clientWidth * 0.8, stage.clientWidth * 0.8);
+    else stage.scrollLeft = p.sl - dx;
+    if (p.freeY) offset.current.y = clamp(p.oy + dy, -stage.clientHeight * 0.8, stage.clientHeight * 0.8);
+    else stage.scrollTop = p.st - dy;
+    applyOffset();
   };
   const endPan = (e: RPointerEvent<HTMLDivElement>) => {
     if (!pan.current || pan.current.id !== e.pointerId) return;
@@ -463,7 +496,7 @@ export function Stage() {
         <div className="mode-bar" role="status">
           <IconRegion />
           <span className="grow">
-            Region {selectedNumber} selected: <b>{describeRect(selected.rect)}</b>. Drag it or its handles; arrows move, <kbd>Alt</kbd> + arrows resize.
+            <b>Region {selectedNumber}</b> selected. Drag to move, handles or <kbd>Alt</kbd> + arrows to resize.
           </span>
           <button type="button" className="btn small" onClick={() => activateComment(selected.id)}>
             Open comment

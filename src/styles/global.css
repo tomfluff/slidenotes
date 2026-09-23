@@ -278,6 +278,7 @@ kbd {
   padding: 0.75rem; overscroll-behavior: contain;
 }
 .stage.pannable { cursor: grab; }
+.stage-inner { will-change: transform; }
 .stage.panning, .stage.panning .frame { cursor: grabbing !important; }
 .stage.space-pan .frame { cursor: grab; }
 .stage-inner { margin: 0 auto; width: 100%; }
@@ -306,12 +307,14 @@ kbd {
    instead of sitting in the flow, so selecting a region never reflows or re-fits the slide
    mid-drag. */
 .mode-bar {
-  position: absolute; left: 0.75rem; right: 0.75rem; top: 0.5rem; z-index: 16;
+  position: absolute; left: 0.75rem; bottom: 0.75rem; z-index: 16;
+  max-width: calc(100% - 13rem);
   display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
-  padding: 0.5rem 0.75rem;
+  padding: 0.4rem 0.7rem;
   background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--r-md);
-  box-shadow: var(--shadow-pop); font-size: 0.875rem;
+  box-shadow: var(--shadow-pop); font-size: 0.8125rem;
 }
+@media (max-width: 880px) { .mode-bar { max-width: calc(100% - 1.5rem); bottom: 3.4rem; } }
 .mode-bar > svg { width: 1.1rem; height: 1.1rem; flex: none; color: var(--accent); }
 .mode-bar .grow { flex: 1; min-width: 12ch; }
 .mode-bar kbd { font-size: 0.7em; }

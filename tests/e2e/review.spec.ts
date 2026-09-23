@@ -360,6 +360,28 @@ test.describe('import', () => {
   });
 });
 
+test.describe('panning', () => {
+  test('space-drag moves the slide even when it fits the view', async ({ page }) => {
+    await openDemo(page);
+    const frame = page.getByTestId('frame');
+    const before = (await frame.boundingBox())!;
+    await frame.focus();
+    await page.keyboard.down('Space');
+    await page.mouse.move(before.x + before.width * 0.5, before.y + before.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(before.x + before.width * 0.5 + 120, before.y + before.height * 0.5 + 60, { steps: 5 });
+    await page.mouse.up();
+    await page.keyboard.up('Space');
+    const after = (await frame.boundingBox())!;
+    expect(after.x - before.x).toBeCloseTo(120, 0);
+    expect(after.y - before.y).toBeCloseTo(60, 0);
+    // Fit brings it back, and drawing still stores the right percentages after a pan.
+    await page.getByRole('button', { name: 'Fit slide to view' }).click();
+    const reset = (await frame.boundingBox())!;
+    expect(Math.abs(reset.x - before.x)).toBeLessThan(1);
+  });
+});
+
 test.describe('region controls', () => {
   test('middle-click and space-drag still pan through a selected region, and handles show resize cursors', async ({ page }) => {
     await openDemo(page);

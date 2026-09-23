@@ -129,6 +129,8 @@ width and height. The project file carries a `schemaVersion`; `migrateProject` i
 - Multiple comments per one annotation.
 - Replies to existing comments.
 - Merge project files from several reviewers.
+- Overlapping annotations.
+- Sketch annotations (freehand marks, not only rectangles).
 
 ## License
 
