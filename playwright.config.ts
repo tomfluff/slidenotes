@@ -4,10 +4,12 @@ import { defineConfig, devices } from '@playwright/test';
 // path, so a broken `base` fails here instead of on GitHub Pages.
 export default defineConfig({
   testDir: 'tests/e2e',
-  timeout: 60_000,
+  timeout: 45_000,
   fullyParallel: true,
-  retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'list',
+  retries: 0,
+  // The list reporter prints each test as it finishes, so a stalled CI run still shows
+  // which test hung; the GitHub reporter only reports at the end.
+  reporter: process.env.CI ? [['list'], ['github']] : 'list',
   use: {
     baseURL: 'http://localhost:4173/slidenotes/',
     trace: 'retain-on-failure',
