@@ -5,6 +5,8 @@ exact regions, and export a comment sheet that co-authors or an AI agent can act
 
 **Live:** https://tomfluff.github.io/slidenotes/
 
+![Slide Review in dark mode: a slide with a numbered red region over its subtitle, the filmstrip of slides on the left with comment counts, and the comment "Use larger font size." in the panel on the right](docs/images/review.webp)
+
 Everything runs in your browser. There is no server, no account and no upload. Slides are
 rendered locally and stored in your browser's IndexedDB, so decks under submission embargo
 never leave your machine. Save a project file to keep a review beyond one browser. The page
