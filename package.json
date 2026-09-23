@@ -1,0 +1,48 @@
+{
+  "name": "slidenotes",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Review slide decks in the browser: mark regions, write comments, export a comment sheet. Fully client side.",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "sample-deck": "node scripts/make-sample-deck.mjs",
+    "fixtures": "node scripts/make-fixture-pdf.mjs && node scripts/make-fixture-pptx.mjs",
+    "test:e2e:pptx": "SLIDENOTES_E2E_PPTX=1 playwright test -g PowerPoint"
+  },
+  "dependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
+    "@fontsource/atkinson-hyperlegible-mono": "^5.3.0",
+    "@fontsource/opendyslexic": "^5.3.0",
+    "idb": "^8.0.3",
+    "jspdf": "^4.2.1",
+    "jszip": "^3.10.2",
+    "pdfjs-dist": "^6.3.289",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "pptxgenjs": "^4.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "core-js"
+    ]
+  }
+}

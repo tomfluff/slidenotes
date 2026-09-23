@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Review slide decks in the browser: mark regions, write comments, export a comment sheet. Nothing leaves your machine." />
+    <meta name="theme-color" content="#3b0d47" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>Slide Review</title>
+    <!-- Google tag (gtag.js): page analytics only. Decks and comments never leave the browser. -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4DZS7N1SNP" crossorigin="anonymous"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-4DZS7N1SNP');
+    </script>
+  </head>
+  <body>
+    <!--
+      Direction: Operate. The reviewer's tool disappears into the task.
+      World: the author's own instrument family (VeasyGuide, QuAlly): brand purple ladder on cool
+      neutrals, Atkinson Hyperlegible, plum footer, rem sizing so browser zoom is the magnifier.
+      Signature: the marker. One colour the reviewer chooses, drawn identically on slide, in the
+      list, in every export. Numbers tie region to comment; colour never carries meaning alone.
+      Honest risk: purple markers on purple-heavy slides. The marker colour is a setting for that.
+    -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+node_modules
+dist
+test-results
+playwright-report
+.impeccable/review
+*.local
+.DS_Store
+*:Zone.Identifier
+.gstack
+.impeccable
+.context

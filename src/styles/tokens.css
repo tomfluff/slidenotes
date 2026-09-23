@@ -1,0 +1,128 @@
+/* Design tokens. Light and dark are both first class; the brand purple ladder is shared
+   with the author's other tools. #D27CF7 fails contrast on white (about 2.1:1), so it is
+   the DARK theme accent; light uses brand-700 (about 6.4:1 on white). */
+:root {
+  --brand-100: #f3e3fd;
+  --brand-300: #d27cf7;
+  --brand-500: #a94ae0;
+  --brand-700: #7b2cbf;
+  --brand-900: #4c1d95;
+  --plum: #3b0d47;
+
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --surface-2: #f5f7f9;
+  --surface-3: #eaecf0;
+  --line: #d3d8e0;
+  --line-strong: #aab3c0;
+  --ink: #14181f;
+  --muted: #55606e;
+  --accent: var(--brand-700);
+  --accent-ink: #ffffff;
+  --accent-soft: var(--brand-100);
+  --accent-hover: #6a23a8;
+  --ring: var(--brand-500);
+  --ok: #1a7f57;
+  --on-ok: #ffffff;
+  --danger: #c0392b;
+  --on-danger: #ffffff;
+  --danger-soft: #fbe6e3;
+  --shadow: 0 1px 2px rgba(20, 24, 31, 0.06), 0 10px 30px -18px rgba(20, 24, 31, 0.35);
+  --shadow-pop: 0 18px 44px -14px rgba(20, 24, 31, 0.4);
+
+  /* The marker is content drawn over the slide, not chrome: it is a user setting and does
+     not flip with the theme, because slides are usually white in either theme. */
+  --mark: #7b2cbf;
+  --mark-ink: #ffffff;
+  --mark-fill: color-mix(in srgb, var(--mark) 20%, transparent);
+  --mark-fill-hot: color-mix(in srgb, var(--mark) 34%, transparent);
+  --mark-stroke: 2px;
+  --badge: 1.375rem;
+
+  --font-cjk: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Noto Sans CJK JP', 'Yu Gothic UI', 'Yu Gothic', Meiryo, 'Apple SD Gothic Neo', 'PingFang SC', 'Microsoft YaHei';
+  --font-atkinson: 'Atkinson Hyperlegible', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, var(--font-cjk), sans-serif;
+  --font-system: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, var(--font-cjk), sans-serif;
+  --font-dyslexic: 'OpenDyslexic', 'Atkinson Hyperlegible', var(--font-cjk), sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, 'SF Mono', Menlo, Consolas, var(--font-cjk), monospace;
+  --font: var(--font-atkinson);
+
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+
+  --dur: 160ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  color-scheme: light;
+}
+
+:root[data-font='system'] { --font: var(--font-system); }
+:root[data-font='dyslexic'] { --font: var(--font-dyslexic); }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0d0f13;
+    --surface: #171b22;
+    --surface-2: #21262f;
+    --surface-3: #2a3039;
+    --line: #333a45;
+    --line-strong: #4b5563;
+    --ink: #f2f4f7;
+    --muted: #a7b0bd;
+    --accent: var(--brand-300);
+    --accent-ink: #14181f;
+    --accent-soft: #2a1836;
+    --accent-hover: #dd97fa;
+    --ring: var(--brand-300);
+    --ok: #4fd095;
+    --on-ok: #0d0f13;
+    --danger: #ff7b6b;
+    --on-danger: #0d0f13;
+    --danger-soft: #3a1c18;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px -18px rgba(0, 0, 0, 0.8);
+    --shadow-pop: 0 18px 44px -14px rgba(0, 0, 0, 0.8);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #0d0f13;
+  --surface: #171b22;
+  --surface-2: #21262f;
+  --surface-3: #2a3039;
+  --line: #333a45;
+  --line-strong: #4b5563;
+  --ink: #f2f4f7;
+  --muted: #a7b0bd;
+  --accent: var(--brand-300);
+  --accent-ink: #14181f;
+  --accent-soft: #2a1836;
+  --accent-hover: #dd97fa;
+  --ring: var(--brand-300);
+  --ok: #4fd095;
+  --on-ok: #0d0f13;
+  --danger: #ff7b6b;
+  --on-danger: #0d0f13;
+  --danger-soft: #3a1c18;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px -18px rgba(0, 0, 0, 0.8);
+  --shadow-pop: 0 18px 44px -14px rgba(0, 0, 0, 0.8);
+  color-scheme: dark;
+}
+
+/* Increased contrast: stronger boundaries and muted text pulled toward ink. Applied by
+   the setting or by the OS preference. */
+@media (prefers-contrast: more) {
+  :root {
+    --line: var(--line-strong);
+    --muted: var(--ink);
+  }
+}
+:root[data-contrast='more'] {
+  --line: var(--line-strong);
+  --muted: var(--ink);
+}
+
+/* Motion: off when the OS says so. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur: 0ms; }
+}
