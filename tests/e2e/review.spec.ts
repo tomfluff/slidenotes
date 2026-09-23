@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { Buffer } from 'node:buffer';
 import { openDemo, drawRegion } from './helpers';
 

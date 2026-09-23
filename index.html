@@ -8,13 +8,20 @@
     <meta name="theme-color" content="#3b0d47" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <title>Slide Review</title>
-    <!-- Google tag (gtag.js): page analytics only. Decks and comments never leave the browser. -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4DZS7N1SNP" crossorigin="anonymous"></script>
+    <!-- Google tag (gtag.js): page analytics only. Decks and comments never leave the browser.
+         Injected after the load event so a slow or blocked analytics host never delays the app. -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-4DZS7N1SNP');
+      window.addEventListener('load', function () {
+        var s = document.createElement('script');
+        s.async = true;
+        s.crossOrigin = 'anonymous';
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-4DZS7N1SNP';
+        document.head.appendChild(s);
+      });
     </script>
   </head>
   <body>
