@@ -1,9 +1,28 @@
 # SlideNotes
 
 Static React + TypeScript + Vite app deployed to GitHub Pages at `/slidenotes/`. Fully client
-side: no server, no API keys. Read `docs/HANDOFF.md` before changing the stage, zoom, marker
-or export code; section 7 lists the interaction maths that each fixed a real bug, and
-`tests/e2e/review.spec.ts` asserts them.
+side: no server, no API keys. Before changing the stage, zoom, marker or export code, read
+the interaction rules below; each one fixed a real bug in the prototype this was ported from,
+and `tests/e2e/review.spec.ts` asserts them.
+
+## Interaction rules that each fixed a real bug
+
+- Zoom sets an explicit pixel width on the slide container (`fitWidth() * zoom`); a CSS
+  transform would not grow the scroll area and most of the slide became unreachable.
+- Anchor zoom by measuring the slide's bounding box before and after the change and
+  correcting the scroll by the difference. Predicting the offset arithmetically drifted
+  about 20 percent per step.
+- Normalise wheel deltas by `deltaMode`, clamp to about 40, then apply
+  `Math.exp(-d * 0.0035)`. Raw `deltaY` made one mouse notch zoom 3x.
+- Drawing only starts on `button === 0` with Space not held; middle click and space-drag pan.
+  `preventDefault` on middle-button `mousedown` suppresses the browser autoscroll widget.
+- The overlay SVG is `viewBox="0 0 100 100"` with `preserveAspectRatio="none"`, so
+  percentage rectangles map onto the slide but circles would render as ellipses. Badges
+  and handles are HTML sized in rem or px and clamped inside the frame.
+- Every scrolling grid child has `min-height: 0; min-width: 0`, or the shell grows past
+  the viewport. Overlay controls (zoom toolbar, selection bar) sit outside the scroller.
+- Marker rectangles are styled by their own class (`.markrect`) so the sheet and every
+  export get the same translucent fill, never the SVG default black.
 
 ## Commands
 

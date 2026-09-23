@@ -114,8 +114,9 @@ src/
     export/     pdf, standalone html, markdown bundle, project zip
   lib/          geometry, sorting, IndexedDB wrapper, formatting
 tests/unit      vitest
-tests/e2e       Playwright, asserting the measurable invariants from docs/HANDOFF.md
-docs/           handoff document and the original prototype
+tests/e2e       Playwright, asserting measurable invariants (zoom anchoring, badge geometry,
+                drawing precision, panning, exports, project round trip)
+docs/           screenshots for the README
 public/         synthetic demo deck, favicon, .nojekyll, the isolation service worker,
                 the vendored zetajs wrapper and the LibreOffice worker-thread script
 ```
