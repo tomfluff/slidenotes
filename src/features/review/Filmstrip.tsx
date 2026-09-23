@@ -32,6 +32,7 @@ export function Filmstrip() {
                 data-index={s.index}
                 aria-current={active ? 'true' : undefined}
                 aria-label={`Slide ${s.index + 1}${n ? `, ${n} comment${n === 1 ? '' : 's'}` : ''}${active ? ', current' : ''}`}
+                style={{ aspectRatio: `${s.width} / ${s.height}` }}
                 onClick={() => goTo(s.index)}
               >
                 {urls.get(s.id) ? <img src={urls.get(s.id)} alt="" loading="lazy" /> : null}

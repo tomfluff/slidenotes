@@ -245,7 +245,10 @@ kbd {
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 @media (max-width: 880px) { .thumb { width: 6.5rem; } }
-.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; }
+/* The button carries the slide's own aspect ratio, so cover never crops more than the
+   rounding slack; contain left one-pixel slivers at the sides because the border eats
+   into the ratio. */
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; background: var(--surface-2); }
 .thumb:hover { border-color: var(--line-strong); }
 .thumb[aria-current='true'] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .thumb .n {
