@@ -1,4 +1,4 @@
-# Slide Review
+# SlideNotes
 
 Static React + TypeScript + Vite app deployed to GitHub Pages at `/slidenotes/`. Fully client
 side: no server, no API keys. Read `docs/HANDOFF.md` before changing the stage, zoom, marker

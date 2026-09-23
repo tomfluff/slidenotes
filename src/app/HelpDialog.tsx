@@ -50,7 +50,7 @@ export function HelpDialog({ open, onClose }: Props) {
         </table>
         <h3>About</h3>
         <p>
-          Slide Review is free software (AGPL-3.0) by Yotam Sechayk. Source and issues:{' '}
+          SlideNotes is free software (AGPL-3.0) by Yotam Sechayk. Source and issues:{' '}
           <a href="https://github.com/tomfluff/slidenotes" target="_blank" rel="noreferrer">github.com/tomfluff/slidenotes</a>.
         </p>
       </div>

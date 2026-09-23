@@ -1,6 +1,6 @@
 # Accessibility
 
-Slide Review is built for reviewing presentation decks with collaborators, by a researcher
+SlideNotes is built for reviewing presentation decks with collaborators, by a researcher
 in accessibility and HCI. This file is the ledger of what the tool actually does and what
 it does not do yet. Target: WCAG 2.2 AA. Last updated 2026-09-23. Checked against the
 accessibility tree and by keyboard simulation in Playwright; not yet tested with real

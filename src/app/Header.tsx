@@ -22,7 +22,7 @@ export function Header() {
     <header className="header">
       <div className="brand">
         <IconBrand className="brand-mark" />
-        <h1>Slide Review</h1>
+        <h1>SlideNotes</h1>
       </div>
       <DeckMenu />
       <span className="header-spacer" />

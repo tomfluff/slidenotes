@@ -1,6 +1,6 @@
 # Third-party notices
 
-Slide Review is licensed under the AGPL-3.0-only (see LICENSE). The following third-party
+SlideNotes is licensed under the AGPL-3.0-only (see LICENSE). The following third-party
 code is redistributed unbundled under `public/` with its own licence.
 
 ## coi-serviceworker (public/coi-serviceworker.js)

@@ -5,7 +5,7 @@ const PROFILE = 'https://tomfluff.github.io/';
 const MAIL = ['sechayk-yotam', 'g.ecc.u-tokyo.ac.jp'];
 
 export function Footer() {
-  const href = `mailto:${MAIL[0]}@${MAIL[1]}?subject=${encodeURIComponent('Slide Review feedback')}`;
+  const href = `mailto:${MAIL[0]}@${MAIL[1]}?subject=${encodeURIComponent('SlideNotes feedback')}`;
   return (
     <footer className="foot">
       <span>Created with love and care by</span>

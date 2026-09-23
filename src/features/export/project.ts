@@ -27,7 +27,7 @@ export interface LoadedProject {
 export async function readProjectZip(file: Blob): Promise<LoadedProject> {
   const zip = await JSZip.loadAsync(file);
   const entry = zip.file('project.json');
-  if (!entry) throw new Error('Not a Slide Review project: project.json is missing.');
+  if (!entry) throw new Error('Not a SlideNotes project: project.json is missing.');
   const raw: unknown = JSON.parse(await entry.async('string'));
   const project = migrateProject(raw);
 
@@ -57,7 +57,7 @@ export function migrateProject(raw: unknown): ReviewProject {
     case 1:
       return validateV1(obj);
     default:
-      throw new Error(`This project was written by a newer version of Slide Review (schema ${version}).`);
+      throw new Error(`This project was written by a newer version of SlideNotes (schema ${version}).`);
   }
 }
 
