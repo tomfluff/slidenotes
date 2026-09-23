@@ -45,8 +45,8 @@ wrapper vendored in `public/vendor/zetajs`). Facts worth knowing:
 - The engine is about 52 MB on the wire and is downloaded once from `cdn.zetaoffice.net`.
   The deck itself is never uploaded; conversion happens in the page.
 - LibreOffice WASM needs cross-origin isolation, which GitHub Pages cannot provide through
-  headers. `public/coi-serviceworker.js` (MIT, Guido Zuidhof) adds the headers from a
-  service worker; the page reloads once the first time someone converts a file. Ordinary
+  headers. `public/coi-serviceworker.js` ([coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker),
+  MIT, Guido Zuidhof) adds the headers from a service worker; the page reloads once the first time someone converts a file. Ordinary
   visitors who never drop a PowerPoint file never trigger it. Clearing site data removes it.
 - Fidelity equals desktop LibreOffice: layout, images, tables and shapes match, but fonts
   the engine lacks (Segoe UI, Calibri) are substituted, so line breaks can differ. A PDF
@@ -60,15 +60,13 @@ wrapper vendored in `public/vendor/zetajs`). Facts worth knowing:
 
 ## Accessibility
 
-Built by an accessibility researcher, so the tool itself is held to the standard it helps
-you review against. Regions have accessible names tied to their comments, existing regions
-can be moved and resized from the keyboard, focus is managed around the composer, and colour
-never carries meaning alone. One known exception: drawing a new region needs a pointer; the
-keyboard fallback is a general note on the slide (`N`). Settings cover reviewer name, theme, comment text size, font (Atkinson Hyperlegible, system,
-OpenDyslexic), contrast, slide frame, marker colour and style (solid, outline, corners),
-subtle or contrastive outline, line weight, badge size and the hover pulse. Panels are resizable
-with the mouse or the keyboard. See
-[ACCESSIBILITY.md](ACCESSIBILITY.md) for the honest ledger of what works and what does not yet.
+Built by an accessibility researcher, so the tool is held to the standard it helps you
+review against: accessible names on regions, keyboard editing of existing regions, managed
+focus, no meaning carried by colour alone, and settings for text size, fonts, contrast and
+marker appearance. It is not finished. [ACCESSIBILITY.md](ACCESSIBILITY.md) lists what
+works and what does not; if something blocks you, please
+[open an issue tagged `accessibility`](https://github.com/tomfluff/slidenotes/issues/new?labels=accessibility)
+to request a fix or a feature.
 
 ## Keyboard reference
 
@@ -128,14 +126,14 @@ width and height. The project file carries a `schemaVersion`; `migrateProject` i
 
 ## Roadmap
 
-- PPTX analysis: parse the `.pptx` for text runs, font sizes, shape geometry and missing
-  alt text, and offer detected issues as draft comments pre-attached to the offending region.
-- Let the user add font files so PowerPoint conversion wraps text exactly as PowerPoint does.
-- Merge project files from several reviewers into one sheet, filter by author.
-- Embed a subsetted Noto Sans JP in the PDF so Japanese text is selectable.
+- Multiple comments per one annotation.
+- Replies to existing comments.
+- Merge project files from several reviewers.
 
 ## License
 
-AGPL-3.0-only. See [LICENSE](LICENSE). Third-party code shipped under `public/`
-(coi-serviceworker and zetajs, both MIT) is listed with its licence text in
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+AGPL-3.0-only. See [LICENSE](LICENSE). Third-party code shipped under `public/`,
+[coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker) and
+[zetajs](https://github.com/allotropia/zetajs) (both MIT), is listed with its licence text in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The LibreOffice WebAssembly runtime it
+loads comes from [ZetaOffice](https://zetaoffice.net/) (LibreOffice, MPL-2.0).
