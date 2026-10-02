@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { IconClose, IconUpload } from '@/app/icons';
 import type { PptxPrompt } from '@/app/store';
-import { ENGINE_MB } from './pptx';
+import { ENGINE_MB, FONTS_MB_MAX } from './pptx';
 
 interface Props {
   prompt: PptxPrompt | null;
@@ -44,7 +44,7 @@ export function PptxDialog({ prompt, onClose, onConvert, onChoosePdf }: Props) {
         </p>
         <h3>Convert in this browser</h3>
         <ul className="pptx-facts">
-          <li>Uses LibreOffice running inside the page (WebAssembly). Downloaded once, about {ENGINE_MB} MB, from ZetaOffice's servers. The deck itself is never uploaded.</li>
+          <li>Uses LibreOffice running inside the page (WebAssembly). Downloaded once, about {ENGINE_MB} MB, from ZetaOffice's servers, plus up to {FONTS_MB_MAX} MB of Japanese, Korean or Chinese fonts when the deck uses them. The deck itself is never uploaded.</li>
           <li>The page reloads once the first time, to enable the engine.</li>
           <li>Fonts the engine lacks (Segoe UI, Calibri and similar) are substituted, so line breaks can differ from PowerPoint. Layout, images and colours match.</li>
           <li>Needs a desktop browser with about 1 GB of free memory.</li>

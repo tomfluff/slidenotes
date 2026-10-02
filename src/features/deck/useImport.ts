@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useStore } from '@/app/store';
 import { classifyFiles, ingestFiles, pdfToSlides, sniffFile } from './ingest';
-import { convertPptxToPdf, ENGINE_MB, isIsolated, isPptxFile, requestIsolation, serviceWorkersAvailable, stashPending, takePending, type PptxPhase } from './pptx';
+import { convertPptxToPdf, isIsolated, planFonts, isPptxFile, requestIsolation, serviceWorkersAvailable, stashPending, takePending, type PptxPhase } from './pptx';
 import { loadSampleDeck } from './sample';
 
 /** One entry point for every way files reach the app: drop, picker, project file. */
@@ -66,7 +66,7 @@ export function useImport() {
   const convertPptx = useCallback(
     async (file: File) => {
       const labels: Record<PptxPhase, string> = {
-        download: `Downloading the conversion engine (${ENGINE_MB} MB, once)…`,
+        download: 'Downloading the conversion engine (once)…',
         start: 'Starting LibreOffice in your browser…',
         convert: `Converting ${file.name} to PDF…`,
       };
@@ -91,6 +91,18 @@ export function useImport() {
         return;
       }
       try {
+        setBusy({ label: 'Checking which fonts the deck needs…', done: 0, total: 1 });
+        const plan = await planFonts(file);
+        if (plan.action === 'restart') {
+          // fontconfig only scans at start-up, so a deck in a script the running engine lacks
+          // reparks the file and reloads, the same path as the isolation reload.
+          setBusy({ label: 'Reloading once to add fonts for this deck…', done: 0, total: 1 });
+          announce('The page will reload once to add fonts for this deck.');
+          await stashPending(file);
+          window.location.reload();
+          return;
+        }
+        labels.download = `Downloading the conversion engine (${plan.downloadMb} MB, once)…`;
         setBusy({ label: labels.download, done: 0, total: 1 });
         const pdf = await convertPptxToPdf(file, (phase) => setBusy({ label: labels[phase], done: 0, total: 1 }));
         const ingested = await pdfToSlides(pdf, (done, total, label) => setBusy({ label, done, total }));

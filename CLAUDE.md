@@ -44,10 +44,13 @@ cross-origin resource must be served with CORP or CORS headers or it will be blo
 those visitors. Everything today is same-origin except cdn.zetaoffice.net and Google
 Analytics, both of which send the headers.
 
-The ZetaOffice package has no CJK font. `pptx.ts` fetches `public/fonts/NotoSansJP-*.otf`
-and writes them into `/instdir/share/fonts/truetype` from an Emscripten `preRun` hook held
-open by a run dependency, so fontconfig sees them when LibreOffice starts. Use the global
-`FS`, never `Module.FS`: that property is an assertion getter that aborts the runtime.
+The ZetaOffice package has no CJK font. `pptx.ts` inspects the slide XML for Japanese,
+Korean and Chinese, fetches the matching `public/fonts/NotoSans{JP,KR,SC}-*.otf` and writes
+them into `/instdir/share/fonts/truetype` from an Emscripten `preRun` hook held open by a run
+dependency, so fontconfig sees them when LibreOffice starts. Fontconfig scans once, so a
+later deck needing another script reparks the file and reloads (`planFonts` returns
+'restart'). Use the global `FS`, never `Module.FS`: that property is an assertion getter
+that aborts the runtime.
 
 ## Conventions
 

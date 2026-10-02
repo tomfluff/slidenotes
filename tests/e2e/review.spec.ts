@@ -1,6 +1,29 @@
 import { test, expect } from './fixtures';
+import type { Page } from '@playwright/test';
 import { Buffer } from 'node:buffer';
 import { openDemo, drawRegion } from './helpers';
+
+
+/** Share of dark pixels in the title row of the current slide image; blank when glyphs are missing. */
+async function titleInk(page: Page): Promise<number> {
+  const img = page.getByTestId('frame').locator('img').first();
+  await expect(img).toBeVisible();
+  return img.evaluate((el: Element) => {
+    const image = el as HTMLImageElement;
+    const c = document.createElement('canvas');
+    c.width = image.naturalWidth;
+    c.height = image.naturalHeight;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(image, 0, 0);
+    // Title box: x 5%..95%, y 14%..33% of a 16:9 slide (0.8in..1.8in of 5.625in).
+    const x0 = Math.round(c.width * 0.05), x1 = Math.round(c.width * 0.95);
+    const y0 = Math.round(c.height * 0.14), y1 = Math.round(c.height * 0.33);
+    const d = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
+    let dark = 0;
+    for (let i = 0; i < d.length; i += 4) if ((d[i]! + d[i + 1]! + d[i + 2]!) / 3 < 128) dark++;
+    return dark / (d.length / 4);
+  });
+}
 
 test.describe('review', () => {
   test('loads under the production base path and shows the landing', async ({ page }) => {
@@ -325,10 +348,10 @@ test.describe('import', () => {
     await expect(dialog).toBeHidden();
   });
 
-  // Downloads the 52 MB LibreOffice engine plus 9 MB of CJK fonts from ZetaOffice's CDN: opt in with
+  // Downloads the 52 MB LibreOffice engine and the CJK fonts from ZetaOffice's CDN: opt in with
   // SLIDENOTES_E2E_PPTX=1 (pnpm test:e2e:pptx). Exercises the service-worker reload path.
   test('PowerPoint conversion in the browser via the isolation service worker', async ({ page }) => {
-    test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the 61 MB engine test');
+    test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the 52 MB engine test');
     test.setTimeout(10 * 60_000);
     await page.goto('./');
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose PDF, PowerPoint or images' }).click()]);
@@ -357,27 +380,43 @@ test.describe('import', () => {
     await page.getByTestId('frame').waitFor({ timeout: 9 * 60_000 });
     await expect(page.locator('#slide-description')).toContainText('日本語のスライド');
     expect(fontRequests.length).toBeGreaterThanOrEqual(2);
-    // Rendered pixels: the title row must not be blank (missing glyphs render nothing).
-    const img = page.getByTestId('frame').locator('img').first();
-    await expect(img).toBeVisible();
-    const inkRatio = await img.evaluate((el) => {
-      const image = el as HTMLImageElement;
-      const c = document.createElement('canvas');
-      c.width = image.naturalWidth;
-      c.height = image.naturalHeight;
-      const ctx = c.getContext('2d')!;
-      ctx.drawImage(image, 0, 0);
-      // Title box: x 5%..95%, y 14%..33% of a 16:9 slide (0.8in..1.8in of 5.625in).
-      const x0 = Math.round(c.width * 0.05), x1 = Math.round(c.width * 0.95);
-      const y0 = Math.round(c.height * 0.14), y1 = Math.round(c.height * 0.33);
-      const d = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
-      let dark = 0;
-      for (let i = 0; i < d.length; i += 4) if ((d[i]! + d[i + 1]! + d[i + 2]!) / 3 < 128) dark++;
-      return dark / (d.length / 4);
-    });
-    expect(inkRatio).toBeGreaterThan(0.01);
+    expect(await titleInk(page)).toBeGreaterThan(0.01);
     await page.screenshot({ path: 'test-results/japanese-pptx.png' });
   });
+
+  // Fonts are chosen per deck and fontconfig only scans at start-up, so a deck in a script
+  // the running engine lacks reparks the file and reloads once more.
+  test('PowerPoint conversion adds Korean and Chinese fonts with a second reload', async ({ page }) => {
+    test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the engine tests');
+    test.setTimeout(10 * 60_000);
+    const fontRequests: string[] = [];
+    page.on('request', (r) => {
+      const m = /\/fonts\/(NotoSans[\w-]+)\.otf/.exec(r.url());
+      if (m) fontRequests.push(m[1]!);
+    });
+    await page.goto('./');
+    let [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose PDF, PowerPoint or images' }).click()]);
+    await chooser.setFiles('tests/e2e/fixtures/japanese.pptx');
+    await page.getByRole('button', { name: 'Convert in this browser' }).click();
+    await page.getByTestId('frame').waitFor({ timeout: 9 * 60_000 });
+    expect(fontRequests.sort()).toEqual(['NotoSansJP-Bold', 'NotoSansJP-Regular']);
+    fontRequests.length = 0;
+    // Second deck, other scripts: the engine has only Japanese fonts, so the page reloads.
+    await page.getByRole('button', { name: /japanese/ }).first().click();
+    [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Load a PDF, PowerPoint or images' }).click()]);
+    await chooser.setFiles('tests/e2e/fixtures/korean-chinese.pptx');
+    await page.getByRole('button', { name: 'Convert in this browser' }).click();
+    await expect(page.getByRole('button', { name: /korean-chinese/ })).toBeVisible({ timeout: 9 * 60_000 });
+    await expect(page.getByRole('navigation', { name: 'Slides' }).getByRole('button')).toHaveCount(2);
+    await expect(page.locator('#slide-description')).toContainText('한국어 슬라이드');
+    expect(await titleInk(page)).toBeGreaterThan(0.01);
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#slide-description')).toContainText('简体中文幻灯片');
+    expect(await titleInk(page)).toBeGreaterThan(0.01);
+    expect(fontRequests.sort()).toEqual(['NotoSansKR-Bold', 'NotoSansKR-Regular', 'NotoSansSC-Bold', 'NotoSansSC-Regular']);
+    await page.screenshot({ path: 'test-results/korean-chinese-pptx.png' });
+  });
+
 
   test('reopening a project replaces the stored copy instead of merging', async ({ page }) => {
     await openDemo(page);

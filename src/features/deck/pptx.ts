@@ -10,14 +10,23 @@ import { storage } from '@/lib/db';
  * The dropped file is parked in IndexedDB across that reload.
  */
 
-export const ENGINE_MB = 61;
+export const ENGINE_MB = 52;
 const BASE = import.meta.env.BASE_URL;
+
 /**
- * The ZetaOffice package ships 137 fonts and none of them covers CJK, so Japanese text
- * rendered as nothing. These fonts (SIL OFL, see THIRD_PARTY_NOTICES.md) are written into
- * the engine's font directory before LibreOffice starts, when fontconfig scans it.
+ * The ZetaOffice package ships 137 fonts and none of them covers CJK, so Japanese, Korean
+ * and Chinese text rendered as nothing. These fonts (SIL OFL, see THIRD_PARTY_NOTICES.md)
+ * are written into the engine's font directory before LibreOffice starts, when fontconfig
+ * scans it. Only the scripts the deck uses are downloaded.
  */
-const EXTRA_FONTS = ['NotoSansJP-Regular.otf', 'NotoSansJP-Bold.otf'];
+export type CjkScript = 'ja' | 'ko' | 'zh';
+const FONT_SETS: Record<CjkScript, { files: string[]; mb: number }> = {
+  ja: { files: ['NotoSansJP-Regular.otf', 'NotoSansJP-Bold.otf'], mb: 9 },
+  ko: { files: ['NotoSansKR-Regular.otf', 'NotoSansKR-Bold.otf'], mb: 9 },
+  zh: { files: ['NotoSansSC-Regular.otf', 'NotoSansSC-Bold.otf'], mb: 16 },
+};
+const ALL_SCRIPTS: CjkScript[] = ['ja', 'ko', 'zh'];
+export const FONTS_MB_MAX = ALL_SCRIPTS.reduce((n, k) => n + FONT_SETS[k].mb, 0);
 const FONT_DIR = '/instdir/share/fonts/truetype';
 const PENDING_KEY = 'pendingPptx';
 const READY_TIMEOUT = 5 * 60_000;
@@ -71,6 +80,72 @@ export function requestIsolation(): Promise<'failed'> {
   });
 }
 
+// ---- fonts --------------------------------------------------------------------------
+
+const KANA = /[\u3040-\u30ff\uff66-\uff9f]/;
+const HANGUL = /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/;
+const HAN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+
+/**
+ * Which CJK scripts the slides use, read from the slide XML inside the .pptx. Han characters
+ * alone are ambiguous, so the run language tags decide, then kana, then Chinese. Anything
+ * that cannot be inspected (a binary .ppt, a damaged zip) gets every font.
+ */
+export async function detectScripts(file: File): Promise<Set<CjkScript>> {
+  try {
+    const { default: JSZip } = await import('jszip');
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    const names = Object.keys(zip.files).filter((n) => /^ppt\/(slides|slideLayouts|slideMasters)\/[^/]+\.xml$/.test(n));
+    if (!names.length) return new Set(ALL_SCRIPTS);
+    const xml = (await Promise.all(names.map((n) => zip.file(n)!.async('string')))).join('\n');
+    const langs = new Set<string>();
+    for (const m of xml.matchAll(/\blang="([a-z]{2})/gi)) langs.add(m[1]!.toLowerCase());
+    const out = new Set<CjkScript>();
+    if (KANA.test(xml)) out.add('ja');
+    if (HANGUL.test(xml)) out.add('ko');
+    if (HAN.test(xml)) {
+      if (langs.has('ja')) out.add('ja');
+      if (langs.has('zh')) out.add('zh');
+      if (!langs.has('ja') && !langs.has('zh')) out.add(out.has('ja') ? 'ja' : 'zh');
+    }
+    return out;
+  } catch {
+    return new Set(ALL_SCRIPTS);
+  }
+}
+
+/** Scripts the running engine was started with; fontconfig only scans at start-up. */
+let installed: Set<CjkScript> | null = null;
+let wanted: Set<CjkScript> = new Set();
+
+export interface FontPlan {
+  /** 'restart' when the engine already runs without a font this deck needs. */
+  action: 'ok' | 'restart';
+  scripts: CjkScript[];
+  /** What the first conversion downloads: engine plus the chosen fonts. */
+  downloadMb: number;
+}
+
+export async function planFonts(file: File): Promise<FontPlan> {
+  const needed = await detectScripts(file);
+  const scripts = ALL_SCRIPTS.filter((k) => needed.has(k));
+  const downloadMb = ENGINE_MB + scripts.reduce((n, k) => n + FONT_SETS[k].mb, 0);
+  if (installed && scripts.some((k) => !installed!.has(k))) return { action: 'restart', scripts, downloadMb };
+  if (!installed) wanted = new Set([...wanted, ...scripts]);
+  return { action: 'ok', scripts, downloadMb };
+}
+
+function fetchFonts(scripts: Set<CjkScript>): Promise<Array<[string, Uint8Array]>> {
+  const files = [...scripts].flatMap((k) => FONT_SETS[k].files);
+  return Promise.all(
+    files.map(async (name): Promise<[string, Uint8Array]> => {
+      const res = await fetch(`${BASE}fonts/${name}`);
+      if (!res.ok) throw new Error(`font ${name}: ${res.status}`);
+      return [name, new Uint8Array(await res.arrayBuffer())];
+    }),
+  );
+}
+
 // ---- engine -------------------------------------------------------------------------
 
 interface ThreadPort {
@@ -118,7 +193,8 @@ async function loadEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
   onPhase('download');
   const mod = (await import(/* @vite-ignore */ `${BASE}vendor/zetajs/zetaHelper.js`)) as { ZetaHelperMain: ZetaHelperMainCtor };
   const helper = new mod.ZetaHelperMain(`${BASE}office_thread.js`, { threadJsType: 'module', blockPageScroll: false });
-  installFonts(helper.Module, fetchFonts());
+  installed = new Set(wanted);
+  installFonts(helper.Module, fetchFonts(installed));
   return new Promise<Engine>((resolve, reject) => {
     const timer = window.setTimeout(() => reject(new Error('engine_timeout')), READY_TIMEOUT);
     try {
@@ -139,21 +215,11 @@ async function loadEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
   });
 }
 
-function fetchFonts(): Promise<Array<[string, Uint8Array]>> {
-  return Promise.all(
-    EXTRA_FONTS.map(async (name): Promise<[string, Uint8Array]> => {
-      const res = await fetch(`${BASE}fonts/${name}`);
-      if (!res.ok) throw new Error(`font ${name}: ${res.status}`);
-      return [name, new Uint8Array(await res.arrayBuffer())];
-    }),
-  );
-}
-
 /**
  * Emscripten runs `preRun` after the in-memory filesystem exists and before `main`, which
  * is when LibreOffice initialises fontconfig. A run dependency holds `main` back until the
  * fonts are in place. A failed font download is logged, not fatal: the deck still converts,
- * only CJK text is lost, as before. The filesystem is the global `FS` the non-modular build
+ * only CJK text is lost. The filesystem is the global `FS` the non-modular build
  * leaks; reading `Module.FS` trips an "FS was not exported" assertion that aborts the engine.
  */
 function installFonts(module: EmscriptenModule, fonts: Promise<Array<[string, Uint8Array]>>): void {
@@ -180,6 +246,7 @@ function getEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
   if (!enginePromise) {
     enginePromise = loadEngine(onPhase).catch((err: unknown) => {
       enginePromise = null;
+      installed = null;
       throw err;
     });
   }

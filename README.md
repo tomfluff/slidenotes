@@ -46,10 +46,13 @@ wrapper vendored in `public/vendor/zetajs`). Facts worth knowing:
 
 - The engine is about 52 MB on the wire and is downloaded once from `cdn.zetaoffice.net`.
   The deck itself is never uploaded; conversion happens in the page.
-- The engine ships no CJK font, so Japanese text would render as nothing. SlideNotes writes
-  Noto Sans JP Regular and Bold (SIL OFL, 9 MB, served from `public/fonts`) into the engine's
-  font directory before LibreOffice starts. Japanese decks convert; Korean text and
-  simplified-Chinese-only characters are still missing.
+- The engine ships no CJK font, so Japanese, Korean and Chinese text would render as
+  nothing. SlideNotes reads which scripts the slides use and writes the matching Noto Sans
+  fonts (JP, KR or SC, Regular and Bold, SIL OFL, served from `public/fonts`) into the
+  engine's font directory before LibreOffice starts: 9 MB each for Japanese and Korean,
+  16 MB for Chinese, only when a deck needs them. Fonts can only be added at start-up, so a
+  later deck in a script the engine lacks reloads the page once more. Traditional Chinese
+  uses the simplified-Chinese glyph shapes.
 - LibreOffice WASM needs cross-origin isolation, which GitHub Pages cannot provide through
   headers. `public/coi-serviceworker.js` ([coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker),
   MIT, Guido Zuidhof) adds the headers from a service worker; the page reloads once the first time someone converts a file. Ordinary
@@ -99,7 +102,7 @@ pnpm test:e2e       # Playwright, builds and serves the production bundle first
 pnpm build          # typecheck + production build into dist/
 pnpm sample-deck    # regenerate the synthetic demo deck in public/sample-deck
 pnpm fixtures       # regenerate the PDF and PowerPoint test fixtures
-pnpm test:e2e:pptx  # opt-in: real PowerPoint conversion through the 61 MB engine
+pnpm test:e2e:pptx  # opt-in: real PowerPoint conversion through the 52 MB engine
 ```
 
 The Vite `base` is `/slidenotes/` for the GitHub project page. Set `VITE_BASE=/` to build
@@ -144,6 +147,6 @@ width and height. The project file carries a `schemaVersion`; `migrateProject` i
 AGPL-3.0-only. See [LICENSE](LICENSE). Third-party code shipped under `public/`,
 [coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker) and
 [zetajs](https://github.com/allotropia/zetajs) (both MIT) and the
-[Noto Sans JP](https://github.com/notofonts/noto-cjk) fonts (SIL OFL 1.1), is listed with its licence text in
+[Noto Sans CJK](https://github.com/notofonts/noto-cjk) fonts (SIL OFL 1.1), is listed with its licence text in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The LibreOffice WebAssembly runtime it
 loads comes from [ZetaOffice](https://zetaoffice.net/) (LibreOffice, MPL-2.0).

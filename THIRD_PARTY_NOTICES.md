@@ -55,9 +55,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## Noto Sans JP (public/fonts/NotoSansJP-Regular.otf, NotoSansJP-Bold.otf)
+## Noto Sans JP, KR and SC (public/fonts/NotoSans{JP,KR,SC}-{Regular,Bold}.otf)
 
-https://github.com/notofonts/noto-cjk (Sans/SubsetOTF/JP)
+https://github.com/notofonts/noto-cjk (Sans/SubsetOTF)
 
 Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
 Noto is a trademark of Google LLC.

@@ -20,3 +20,14 @@ j1.addText('アクセシビリティは、みんなで取り組むものです�
 j1.addText('Mixed: English and 日本語 on one line.', { x: 0.5, y: 3.2, w: 9, h: 0.6, fontSize: 18 });
 await ja.writeFile({ fileName: 'tests/e2e/fixtures/japanese.pptx' });
 console.log('wrote tests/e2e/fixtures/japanese.pptx');
+
+const cjk = new pptxgen();
+cjk.layout = 'LAYOUT_16x9';
+const k1 = cjk.addSlide();
+k1.addText('한국어 슬라이드', { x: 0.5, y: 0.8, w: 9, h: 1, fontSize: 40, bold: true, lang: 'ko-KR' });
+k1.addText('접근성은 모두가 함께 만드는 것입니다.', { x: 0.5, y: 2, w: 9, h: 0.8, fontSize: 20, lang: 'ko-KR' });
+const c1 = cjk.addSlide();
+c1.addText('简体中文幻灯片', { x: 0.5, y: 0.8, w: 9, h: 1, fontSize: 40, bold: true, lang: 'zh-CN' });
+c1.addText('无障碍是大家共同努力的事情。', { x: 0.5, y: 2, w: 9, h: 0.8, fontSize: 20, lang: 'zh-CN' });
+await cjk.writeFile({ fileName: 'tests/e2e/fixtures/korean-chinese.pptx' });
+console.log('wrote tests/e2e/fixtures/korean-chinese.pptx');
