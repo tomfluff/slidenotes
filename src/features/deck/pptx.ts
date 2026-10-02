@@ -10,8 +10,15 @@ import { storage } from '@/lib/db';
  * The dropped file is parked in IndexedDB across that reload.
  */
 
-export const ENGINE_MB = 52;
+export const ENGINE_MB = 61;
 const BASE = import.meta.env.BASE_URL;
+/**
+ * The ZetaOffice package ships 137 fonts and none of them covers CJK, so Japanese text
+ * rendered as nothing. These fonts (SIL OFL, see THIRD_PARTY_NOTICES.md) are written into
+ * the engine's font directory before LibreOffice starts, when fontconfig scans it.
+ */
+const EXTRA_FONTS = ['NotoSansJP-Regular.otf', 'NotoSansJP-Bold.otf'];
+const FONT_DIR = '/instdir/share/fonts/truetype';
 const PENDING_KEY = 'pendingPptx';
 const READY_TIMEOUT = 5 * 60_000;
 const CONVERT_TIMEOUT = 3 * 60_000;
@@ -74,6 +81,13 @@ interface EmscriptenFS {
   writeFile: (path: string, data: Uint8Array) => void;
   readFile: (path: string) => Uint8Array;
   unlink: (path: string) => void;
+  mkdirTree?: (path: string) => void;
+  createPath?: (parent: string, path: string, canRead: boolean, canWrite: boolean) => void;
+}
+interface EmscriptenModule {
+  preRun?: Array<() => void>;
+  addRunDependency?: (id: string) => void;
+  removeRunDependency?: (id: string) => void;
 }
 interface Engine {
   port: ThreadPort;
@@ -84,6 +98,7 @@ interface ZetaHelperMainCtor {
     start: (init: () => void) => void;
     thrPort: ThreadPort;
     FS: EmscriptenFS;
+    Module: EmscriptenModule;
   };
 }
 
@@ -103,6 +118,7 @@ async function loadEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
   onPhase('download');
   const mod = (await import(/* @vite-ignore */ `${BASE}vendor/zetajs/zetaHelper.js`)) as { ZetaHelperMain: ZetaHelperMainCtor };
   const helper = new mod.ZetaHelperMain(`${BASE}office_thread.js`, { threadJsType: 'module', blockPageScroll: false });
+  installFonts(helper.Module, fetchFonts());
   return new Promise<Engine>((resolve, reject) => {
     const timer = window.setTimeout(() => reject(new Error('engine_timeout')), READY_TIMEOUT);
     try {
@@ -121,6 +137,43 @@ async function loadEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
       reject(err instanceof Error ? err : new Error(String(err)));
     }
   });
+}
+
+function fetchFonts(): Promise<Array<[string, Uint8Array]>> {
+  return Promise.all(
+    EXTRA_FONTS.map(async (name): Promise<[string, Uint8Array]> => {
+      const res = await fetch(`${BASE}fonts/${name}`);
+      if (!res.ok) throw new Error(`font ${name}: ${res.status}`);
+      return [name, new Uint8Array(await res.arrayBuffer())];
+    }),
+  );
+}
+
+/**
+ * Emscripten runs `preRun` after the in-memory filesystem exists and before `main`, which
+ * is when LibreOffice initialises fontconfig. A run dependency holds `main` back until the
+ * fonts are in place. A failed font download is logged, not fatal: the deck still converts,
+ * only CJK text is lost, as before. The filesystem is the global `FS` the non-modular build
+ * leaks; reading `Module.FS` trips an "FS was not exported" assertion that aborts the engine.
+ */
+function installFonts(module: EmscriptenModule, fonts: Promise<Array<[string, Uint8Array]>>): void {
+  const w = window as unknown as { FS?: EmscriptenFS };
+  module.preRun = [
+    ...(module.preRun ?? []),
+    () => {
+      const fs = w.FS;
+      if (!fs || !module.addRunDependency || !module.removeRunDependency) return;
+      module.addRunDependency('slidenotes-fonts');
+      fonts
+        .then((list) => {
+          if (fs.mkdirTree) fs.mkdirTree(FONT_DIR);
+          else fs.createPath?.('/', FONT_DIR.slice(1), true, true);
+          for (const [name, bytes] of list) fs.writeFile(`${FONT_DIR}/${name}`, bytes);
+        })
+        .catch((err: unknown) => console.warn('SlideNotes: CJK fonts not installed', err))
+        .finally(() => module.removeRunDependency?.('slidenotes-fonts'));
+    },
+  ];
 }
 
 function getEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {

@@ -325,10 +325,10 @@ test.describe('import', () => {
     await expect(dialog).toBeHidden();
   });
 
-  // Downloads the 52 MB LibreOffice engine from ZetaOffice's CDN: opt in with
+  // Downloads the 52 MB LibreOffice engine plus 9 MB of CJK fonts from ZetaOffice's CDN: opt in with
   // SLIDENOTES_E2E_PPTX=1 (pnpm test:e2e:pptx). Exercises the service-worker reload path.
   test('PowerPoint conversion in the browser via the isolation service worker', async ({ page }) => {
-    test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the 52 MB engine test');
+    test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the 61 MB engine test');
     test.setTimeout(10 * 60_000);
     await page.goto('./');
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose PDF, PowerPoint or images' }).click()]);
@@ -340,6 +340,43 @@ test.describe('import', () => {
     await expect(page.getByRole('navigation', { name: 'Slides' }).getByRole('button')).toHaveCount(2);
     await expect(page.locator('#slide-description')).toContainText('Fixture slide one');
     await expect(page.getByRole('button', { name: /two-slides/ })).toBeVisible();
+  });
+
+  // The ZetaOffice package has no CJK font; SlideNotes injects Noto Sans JP before start.
+  test('PowerPoint conversion keeps Japanese text', async ({ page }) => {
+    test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the engine tests');
+    test.setTimeout(10 * 60_000);
+    const fontRequests: string[] = [];
+    page.on('request', (r) => {
+      if (r.url().includes('/fonts/NotoSansJP')) fontRequests.push(r.url());
+    });
+    await page.goto('./');
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose PDF, PowerPoint or images' }).click()]);
+    await chooser.setFiles('tests/e2e/fixtures/japanese.pptx');
+    await page.getByRole('button', { name: 'Convert in this browser' }).click();
+    await page.getByTestId('frame').waitFor({ timeout: 9 * 60_000 });
+    await expect(page.locator('#slide-description')).toContainText('日本語のスライド');
+    expect(fontRequests.length).toBeGreaterThanOrEqual(2);
+    // Rendered pixels: the title row must not be blank (missing glyphs render nothing).
+    const img = page.getByTestId('frame').locator('img').first();
+    await expect(img).toBeVisible();
+    const inkRatio = await img.evaluate((el) => {
+      const image = el as HTMLImageElement;
+      const c = document.createElement('canvas');
+      c.width = image.naturalWidth;
+      c.height = image.naturalHeight;
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(image, 0, 0);
+      // Title box: x 5%..95%, y 14%..33% of a 16:9 slide (0.8in..1.8in of 5.625in).
+      const x0 = Math.round(c.width * 0.05), x1 = Math.round(c.width * 0.95);
+      const y0 = Math.round(c.height * 0.14), y1 = Math.round(c.height * 0.33);
+      const d = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
+      let dark = 0;
+      for (let i = 0; i < d.length; i += 4) if ((d[i]! + d[i + 1]! + d[i + 2]!) / 3 < 128) dark++;
+      return dark / (d.length / 4);
+    });
+    expect(inkRatio).toBeGreaterThan(0.01);
+    await page.screenshot({ path: 'test-results/japanese-pptx.png' });
   });
 
   test('reopening a project replaces the stored copy instead of merging', async ({ page }) => {
