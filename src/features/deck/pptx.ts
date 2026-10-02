@@ -58,9 +58,8 @@ export async function stashPending(file: File): Promise<void> {
 
 /** Returns and clears the file parked before the isolation reload, if any. */
 export async function takePending(): Promise<File | null> {
-  const rec = await storage.getMeta<Pending>(PENDING_KEY);
+  const rec = await storage.takeMeta<Pending | null>(PENDING_KEY);
   if (!rec) return null;
-  await storage.setMeta(PENDING_KEY, null);
   return new File([rec.blob], rec.name, { type: rec.type, lastModified: rec.lastModified });
 }
 
@@ -82,12 +81,21 @@ export function requestIsolation(): Promise<'failed'> {
 
 // ---- fonts --------------------------------------------------------------------------
 
-const KANA = /[\u3040-\u30ff\uff66-\uff9f]/;
-const HANGUL = /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/;
-const HAN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+const KANA = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;
+const HANGUL = /\p{Script=Hangul}/u;
+const HAN = /\p{Script=Han}/u;
+/** Parts of a .pptx that carry rendered text: slides, their layouts and masters, charts, SmartArt. */
+const TEXT_PARTS = /^ppt\/(slides|slideLayouts|slideMasters|charts|diagrams)\/[^/]+\.xml$/;
+
+/** Numeric character references, which some writers use for non-ASCII text. */
+const decodeRefs = (xml: string): string =>
+  xml.replace(/&#(x[0-9a-f]+|\d+);/gi, (_, ref: string) => {
+    const code = ref[0]?.toLowerCase() === 'x' ? parseInt(ref.slice(1), 16) : parseInt(ref, 10);
+    return Number.isFinite(code) && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+  });
 
 /**
- * Which CJK scripts the slides use, read from the slide XML inside the .pptx. Han characters
+ * Which CJK scripts the slides use, read from the XML inside the .pptx. Han characters
  * alone are ambiguous, so the run language tags decide, then kana, then Chinese. Anything
  * that cannot be inspected (a binary .ppt, a damaged zip) gets every font.
  */
@@ -95,9 +103,9 @@ export async function detectScripts(file: File): Promise<Set<CjkScript>> {
   try {
     const { default: JSZip } = await import('jszip');
     const zip = await JSZip.loadAsync(await file.arrayBuffer());
-    const names = Object.keys(zip.files).filter((n) => /^ppt\/(slides|slideLayouts|slideMasters)\/[^/]+\.xml$/.test(n));
+    const names = Object.keys(zip.files).filter((n) => TEXT_PARTS.test(n));
     if (!names.length) return new Set(ALL_SCRIPTS);
-    const xml = (await Promise.all(names.map((n) => zip.file(n)!.async('string')))).join('\n');
+    const xml = decodeRefs((await Promise.all(names.map((n) => zip.file(n)!.async('string')))).join('\n'));
     const langs = new Set<string>();
     for (const m of xml.matchAll(/\blang="([a-z]{2})/gi)) langs.add(m[1]!.toLowerCase());
     const out = new Set<CjkScript>();
@@ -116,6 +124,8 @@ export async function detectScripts(file: File): Promise<Set<CjkScript>> {
 
 /** Scripts the running engine was started with; fontconfig only scans at start-up. */
 let installed: Set<CjkScript> | null = null;
+/** Scripts whose fonts actually reached the engine's filesystem (resolves once it starts). */
+let fontsReady: Promise<Set<CjkScript>> = Promise.resolve(new Set());
 let wanted: Set<CjkScript> = new Set();
 
 export interface FontPlan {
@@ -194,7 +204,7 @@ async function loadEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
   const mod = (await import(/* @vite-ignore */ `${BASE}vendor/zetajs/zetaHelper.js`)) as { ZetaHelperMain: ZetaHelperMainCtor };
   const helper = new mod.ZetaHelperMain(`${BASE}office_thread.js`, { threadJsType: 'module', blockPageScroll: false });
   installed = new Set(wanted);
-  installFonts(helper.Module, fetchFonts(installed));
+  fontsReady = installFonts(helper.Module, installed, fetchFonts(installed));
   return new Promise<Engine>((resolve, reject) => {
     const timer = window.setTimeout(() => reject(new Error('engine_timeout')), READY_TIMEOUT);
     try {
@@ -218,28 +228,38 @@ async function loadEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
 /**
  * Emscripten runs `preRun` after the in-memory filesystem exists and before `main`, which
  * is when LibreOffice initialises fontconfig. A run dependency holds `main` back until the
- * fonts are in place. A failed font download is logged, not fatal: the deck still converts,
- * only CJK text is lost. The filesystem is the global `FS` the non-modular build
- * leaks; reading `Module.FS` trips an "FS was not exported" assertion that aborts the engine.
+ * fonts are in place. The returned promise tells which scripts really made it: a failed
+ * download leaves the engine running without them, and the conversion then fails visibly
+ * instead of silently dropping text. The filesystem is the global `FS` the non-modular
+ * build leaks; reading `Module.FS` trips an "FS was not exported" assertion that aborts.
  */
-function installFonts(module: EmscriptenModule, fonts: Promise<Array<[string, Uint8Array]>>): void {
+function installFonts(module: EmscriptenModule, scripts: Set<CjkScript>, fonts: Promise<Array<[string, Uint8Array]>>): Promise<Set<CjkScript>> {
   const w = window as unknown as { FS?: EmscriptenFS };
-  module.preRun = [
-    ...(module.preRun ?? []),
-    () => {
-      const fs = w.FS;
-      if (!fs || !module.addRunDependency || !module.removeRunDependency) return;
-      module.addRunDependency('slidenotes-fonts');
-      fonts
-        .then((list) => {
-          if (fs.mkdirTree) fs.mkdirTree(FONT_DIR);
-          else fs.createPath?.('/', FONT_DIR.slice(1), true, true);
-          for (const [name, bytes] of list) fs.writeFile(`${FONT_DIR}/${name}`, bytes);
-        })
-        .catch((err: unknown) => console.warn('SlideNotes: CJK fonts not installed', err))
-        .finally(() => module.removeRunDependency?.('slidenotes-fonts'));
-    },
-  ];
+  return new Promise<Set<CjkScript>>((resolve) => {
+    module.preRun = [
+      ...(module.preRun ?? []),
+      () => {
+        const fs = w.FS;
+        if (!fs || !module.addRunDependency || !module.removeRunDependency) {
+          resolve(new Set());
+          return;
+        }
+        module.addRunDependency('slidenotes-fonts');
+        fonts
+          .then((list) => {
+            if (fs.mkdirTree) fs.mkdirTree(FONT_DIR);
+            else fs.createPath?.('/', FONT_DIR.slice(1), true, true);
+            for (const [name, bytes] of list) fs.writeFile(`${FONT_DIR}/${name}`, bytes);
+            resolve(new Set(scripts));
+          })
+          .catch((err: unknown) => {
+            console.warn('SlideNotes: CJK fonts not installed', err);
+            resolve(new Set());
+          })
+          .finally(() => module.removeRunDependency?.('slidenotes-fonts'));
+      },
+    ];
+  });
 }
 
 function getEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
@@ -255,10 +275,19 @@ function getEngine(onPhase: (p: PptxPhase) => void): Promise<Engine> {
 
 let seq = 0;
 
-/** Converts a .pptx (or .ppt) File to a PDF File, one conversion at a time. */
-export function convertPptxToPdf(file: File, onPhase: (p: PptxPhase) => void): Promise<File> {
+/**
+ * Converts a .pptx (or .ppt) File to a PDF File, one conversion at a time. `scripts` are
+ * the CJK scripts the deck needs (from `planFonts`); if their fonts did not reach the
+ * engine the conversion fails with `fonts_failed` and the next attempt restarts the engine.
+ */
+export function convertPptxToPdf(file: File, scripts: CjkScript[], onPhase: (p: PptxPhase) => void): Promise<File> {
   const run = async (): Promise<File> => {
     const engine = await getEngine(onPhase);
+    const have = await fontsReady;
+    if (scripts.some((k) => !have.has(k))) {
+      installed = have;
+      throw new Error('fonts_failed');
+    }
     onPhase('convert');
     const id = ++seq;
     const from = `/tmp/input-${id}.pptx`;

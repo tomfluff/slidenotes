@@ -95,6 +95,14 @@ export const storage = {
   async setMeta(key: string, value: unknown): Promise<void> {
     await (await db()).put('meta', value, key);
   },
+  /** Reads and deletes in one transaction, so two concurrent callers cannot both get the value. */
+  async takeMeta<T>(key: string): Promise<T | undefined> {
+    const tx = (await db()).transaction('meta', 'readwrite');
+    const value = (await tx.store.get(key)) as T | undefined;
+    if (value !== undefined) await tx.store.delete(key);
+    await tx.done;
+    return value;
+  },
 
   /**
    * Writes a whole deck, its images and its comments in one transaction, replacing any

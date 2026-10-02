@@ -8,6 +8,10 @@ import { openDemo, drawRegion } from './helpers';
 async function titleInk(page: Page): Promise<number> {
   const img = page.getByTestId('frame').locator('img').first();
   await expect(img).toBeVisible();
+  await img.evaluate((el: Element) => {
+    const image = el as HTMLImageElement;
+    return image.complete ? undefined : new Promise<void>((r) => image.addEventListener('load', () => r(), { once: true }));
+  });
   return img.evaluate((el: Element) => {
     const image = el as HTMLImageElement;
     const c = document.createElement('canvas');
@@ -348,7 +352,7 @@ test.describe('import', () => {
     await expect(dialog).toBeHidden();
   });
 
-  // Downloads the 52 MB LibreOffice engine and the CJK fonts from ZetaOffice's CDN: opt in with
+  // Downloads the 52 MB LibreOffice engine from ZetaOffice's CDN (the CJK fonts are same-origin): opt in with
   // SLIDENOTES_E2E_PPTX=1 (pnpm test:e2e:pptx). Exercises the service-worker reload path.
   test('PowerPoint conversion in the browser via the isolation service worker', async ({ page }) => {
     test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the 52 MB engine test');
@@ -369,9 +373,9 @@ test.describe('import', () => {
   test('PowerPoint conversion keeps Japanese text', async ({ page }) => {
     test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the engine tests');
     test.setTimeout(10 * 60_000);
-    const fontRequests: string[] = [];
-    page.on('request', (r) => {
-      if (r.url().includes('/fonts/NotoSansJP')) fontRequests.push(r.url());
+    const fontsServed: string[] = [];
+    page.on('response', (r) => {
+      if (r.url().includes('/fonts/NotoSansJP') && r.ok()) fontsServed.push(r.url());
     });
     await page.goto('./');
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose PDF, PowerPoint or images' }).click()]);
@@ -379,7 +383,7 @@ test.describe('import', () => {
     await page.getByRole('button', { name: 'Convert in this browser' }).click();
     await page.getByTestId('frame').waitFor({ timeout: 9 * 60_000 });
     await expect(page.locator('#slide-description')).toContainText('日本語のスライド');
-    expect(fontRequests.length).toBeGreaterThanOrEqual(2);
+    expect(fontsServed.length).toBeGreaterThanOrEqual(2);
     expect(await titleInk(page)).toBeGreaterThan(0.01);
     await page.screenshot({ path: 'test-results/japanese-pptx.png' });
   });
@@ -389,18 +393,23 @@ test.describe('import', () => {
   test('PowerPoint conversion adds Korean and Chinese fonts with a second reload', async ({ page }) => {
     test.skip(!process.env.SLIDENOTES_E2E_PPTX, 'set SLIDENOTES_E2E_PPTX=1 to run the engine tests');
     test.setTimeout(10 * 60_000);
-    const fontRequests: string[] = [];
-    page.on('request', (r) => {
+    const fontsServed: string[] = [];
+    page.on('response', (r) => {
       const m = /\/fonts\/(NotoSans[\w-]+)\.otf/.exec(r.url());
-      if (m) fontRequests.push(m[1]!);
+      if (m && r.ok()) fontsServed.push(m[1]!);
+    });
+    let navigations = 0;
+    page.on('framenavigated', (f) => {
+      if (f === page.mainFrame()) navigations++;
     });
     await page.goto('./');
     let [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Choose PDF, PowerPoint or images' }).click()]);
     await chooser.setFiles('tests/e2e/fixtures/japanese.pptx');
     await page.getByRole('button', { name: 'Convert in this browser' }).click();
     await page.getByTestId('frame').waitFor({ timeout: 9 * 60_000 });
-    expect(fontRequests.sort()).toEqual(['NotoSansJP-Bold', 'NotoSansJP-Regular']);
-    fontRequests.length = 0;
+    expect(fontsServed.sort()).toEqual(['NotoSansJP-Bold', 'NotoSansJP-Regular']);
+    fontsServed.length = 0;
+    const navigationsBefore = navigations;
     // Second deck, other scripts: the engine has only Japanese fonts, so the page reloads.
     await page.getByRole('button', { name: /japanese/ }).first().click();
     [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Load a PDF, PowerPoint or images' }).click()]);
@@ -413,7 +422,8 @@ test.describe('import', () => {
     await page.keyboard.press('ArrowRight');
     await expect(page.locator('#slide-description')).toContainText('简体中文幻灯片');
     expect(await titleInk(page)).toBeGreaterThan(0.01);
-    expect(fontRequests.sort()).toEqual(['NotoSansKR-Bold', 'NotoSansKR-Regular', 'NotoSansSC-Bold', 'NotoSansSC-Regular']);
+    expect(fontsServed.sort()).toEqual(['NotoSansKR-Bold', 'NotoSansKR-Regular', 'NotoSansSC-Bold', 'NotoSansSC-Regular']);
+    expect(navigations).toBeGreaterThan(navigationsBefore);
     await page.screenshot({ path: 'test-results/korean-chinese-pptx.png' });
   });
 

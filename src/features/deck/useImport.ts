@@ -65,6 +65,12 @@ export function useImport() {
    */
   const convertPptx = useCallback(
     async (file: File) => {
+      if (useStore.getState().busy) {
+        const msg = 'Wait for the current import to finish before converting another file.';
+        toast('err', msg);
+        announce(msg);
+        return;
+      }
       const labels: Record<PptxPhase, string> = {
         download: 'Downloading the conversion engine (once)…',
         start: 'Starting LibreOffice in your browser…',
@@ -100,11 +106,16 @@ export function useImport() {
           announce('The page will reload once to add fonts for this deck.');
           await stashPending(file);
           window.location.reload();
+          // Still here after the grace period: the unload was cancelled (unsaved-changes
+          // prompt). Unpark the file so it does not convert by itself on a later visit.
+          await new Promise((r) => window.setTimeout(r, 8000));
+          await takePending().catch(() => null);
+          setPptxPrompt({ file, error: 'The page did not reload, so the fonts for this deck were not added. Try again.' });
           return;
         }
         labels.download = `Downloading the conversion engine (${plan.downloadMb} MB, once)…`;
         setBusy({ label: labels.download, done: 0, total: 1 });
-        const pdf = await convertPptxToPdf(file, (phase) => setBusy({ label: labels[phase], done: 0, total: 1 }));
+        const pdf = await convertPptxToPdf(file, plan.scripts, (phase) => setBusy({ label: labels[phase], done: 0, total: 1 }));
         const ingested = await pdfToSlides(pdf, (done, total, label) => setBusy({ label, done, total }));
         ingested.deck.name = file.name.replace(/\.pptx?$/i, '');
         await addDeck(ingested);
@@ -116,7 +127,9 @@ export function useImport() {
         const text = err instanceof Error ? err.message : String(err);
         const friendly = /timeout/.test(text)
           ? 'The conversion engine took too long to load or convert. Check the connection and try again, or export the deck as PDF.'
-          : `The engine could not convert this file (${text}). Export the deck as PDF instead.`;
+          : text === 'fonts_failed'
+            ? 'The fonts for this deck could not be downloaded, so its text would be missing. Check the connection and try again; the page will reload once.'
+            : `The engine could not convert this file (${text}). Export the deck as PDF instead.`;
         setPptxPrompt({ file, error: friendly });
         announce(friendly);
       } finally {

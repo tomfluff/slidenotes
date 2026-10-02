@@ -49,7 +49,8 @@ Korean and Chinese, fetches the matching `public/fonts/NotoSans{JP,KR,SC}-*.otf`
 them into `/instdir/share/fonts/truetype` from an Emscripten `preRun` hook held open by a run
 dependency, so fontconfig sees them when LibreOffice starts. Fontconfig scans once, so a
 later deck needing another script reparks the file and reloads (`planFonts` returns
-'restart'). Use the global `FS`, never `Module.FS`: that property is an assertion getter
+'restart'). A font download that fails makes the conversion fail with `fonts_failed` rather
+than silently dropping text; the next attempt restarts the engine the same way. Use the global `FS`, never `Module.FS`: that property is an assertion getter
 that aborts the runtime.
 
 ## Conventions
