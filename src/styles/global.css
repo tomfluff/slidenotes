@@ -25,8 +25,7 @@ body {
 
 #root { height: 100%; }
 
-::selection { background: var(--accent-soft); color: var(--ink); }
-:root[data-theme='dark'] ::selection { background: var(--brand-900); color: #fff; }
+::selection { background: var(--select-bg); color: var(--select-ink); }
 
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }

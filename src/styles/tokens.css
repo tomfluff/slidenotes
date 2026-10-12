@@ -20,6 +20,9 @@
   --accent: var(--brand-700);
   --accent-ink: #ffffff;
   --accent-soft: var(--brand-100);
+  /* Text selection: dark ink on a mid lilac (about 9:1), never the faint accent-soft tint. */
+  --select-bg: #c58cf0;
+  --select-ink: #14181f;
   --accent-hover: #6a23a8;
   --ring: var(--brand-500);
   --ok: #1a7f57;
@@ -73,6 +76,8 @@
     --accent: var(--brand-300);
     --accent-ink: #14181f;
     --accent-soft: #2a1836;
+    --select-bg: #6a2fa0;
+    --select-ink: #ffffff;
     --accent-hover: #dd97fa;
     --ring: var(--brand-300);
     --ok: #4fd095;
@@ -97,6 +102,8 @@
   --accent: var(--brand-300);
   --accent-ink: #14181f;
   --accent-soft: #2a1836;
+  --select-bg: #6a2fa0;
+  --select-ink: #ffffff;
   --accent-hover: #dd97fa;
   --ring: var(--brand-300);
   --ok: #4fd095;
